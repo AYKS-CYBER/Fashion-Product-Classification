@@ -1,0 +1,9 @@
+# Fashion Product Classification using CNN
+# Compatible dependencies for Python 3.10 - 3.13 on Windows / Linux / macOS
+
+tensorflow>=2.15.0
+keras>=3.0.0
+streamlit>=1.30.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+pillow>=10.0.0

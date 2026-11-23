@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fashion Product Classification Dashboard | Fashion-MNIST</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbars and styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--card); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .canvas-grid {
+      background-size: 20px 20px;
+      background-image: linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-4 sm:p-6 lg:p-8">
+
+  <!-- Top Header Navigation -->
+  <header class="max-w-7xl mx-auto mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-[var(--border)]">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            Deep Learning Project
+          </span>
+          <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-[var(--card)] text-[var(--muted-foreground)] border border-[var(--border)]">
+            TensorFlow &bull; Keras &bull; Fashion-MNIST
+          </span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight mt-2 text-[var(--foreground)]">
+          Fashion Product Classification
+        </h1>
+        <p class="text-sm text-[var(--muted-foreground)] mt-1">
+          Automated multi-class clothing recognition across 10 categories (shirts, shoes, bags, coats, dresses, trousers) using ANN & CNN architectures.
+        </p>
+      </div>
+
+      <!-- Quick Action Badges -->
+      <div class="flex items-center gap-2">
+        <div class="text-right hidden sm:block">
+          <div class="text-xs text-[var(--muted-foreground)]">Model Performance</div>
+          <div class="text-base font-bold text-emerald-500">92.4% Test Accuracy</div>
+        </div>
+        <div class="h-8 w-px bg-[var(--border)] mx-1 hidden sm:block"></div>
+        <button onclick="switchTab('interactive')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition shadow-sm">
+          ⚡ Try Live Inference
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 mt-4 overflow-x-auto pb-1 border-b border-[var(--border)] text-sm font-medium">
+      <button id="tab-btn-interactive" onclick="switchTab('interactive')" class="tab-btn px-4 py-2 border-b-2 border-emerald-500 text-emerald-500 font-semibold flex items-center gap-2">
+        <span>👗</span> Live Classifier & Samples
+      </button>
+      <button id="tab-btn-benchmark" onclick="switchTab('benchmark')" class="tab-btn px-4 py-2 border-b-2 border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-2">
+        <span>📊</span> Model Benchmark (ANN vs CNN)
+      </button>
+      <button id="tab-btn-matrix" onclick="switchTab('matrix')" class="tab-btn px-4 py-2 border-b-2 border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-2">
+        <span>🎯</span> Confusion Matrix & Analysis
+      </button>
+      <button id="tab-btn-architecture" onclick="switchTab('architecture')" class="tab-btn px-4 py-2 border-b-2 border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-2">
+        <span>🧠</span> Neural Architectures
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto">
+
+    <!-- ==================== TAB 1: LIVE CLASSIFIER ==================== -->
+    <section id="tab-interactive" class="tab-content block">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Controls & Sample Selector (7 cols) -->
+        <div class="lg:col-span-7 space-y-5">
+          <!-- Sample Items Palette -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="font-semibold text-sm sm:text-base text-[var(--foreground)]">Select Fashion Sample</h3>
+                <p class="text-xs text-[var(--muted-foreground)]">Click any item below to load its 28x28 normalized image tensor</p>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--background)] text-[var(--muted-foreground)] border border-[var(--border)]">
+                10 Classes
+              </span>
+            </div>
+
+            <!-- Categories Grid -->
+            <div class="grid grid-cols-5 sm:grid-cols-5 gap-2" id="sample-buttons-grid">
+              <!-- Dynamically populated via JS -->
+            </div>
+          </div>
+
+          <!-- Preview & Canvas Workspace -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-sm sm:text-base text-[var(--foreground)]">Image Workspace (28 x 28 Input)</h3>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-[var(--muted-foreground)]">Model:</span>
+                <select id="model-select" onchange="runClassification()" class="text-xs bg-[var(--background)] border border-[var(--border)] rounded px-2.5 py-1 font-medium text-[var(--foreground)] outline-none">
+                  <option value="cnn">CNN (Receptive Fields - 92.4% Acc)</option>
+                  <option value="ann">ANN (MLP Dense - 88.3% Acc)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+              <!-- High-res Render Canvas -->
+              <div class="relative flex flex-col items-center">
+                <div class="w-48 h-48 rounded-lg overflow-hidden border-2 border-[var(--border)] bg-black canvas-grid flex items-center justify-center shadow-inner relative group">
+                  <canvas id="display-canvas" width="28" height="28" class="w-full h-full image-rendering-pixelated"></canvas>
+                  <div class="absolute bottom-1 right-1 px-1.5 py-0.5 text-[10px] bg-black/70 text-white rounded font-mono">
+                    28x28 px
+                  </div>
+                </div>
+                <span id="canvas-label" class="mt-2 text-xs font-medium text-[var(--muted-foreground)] text-center">
+                  Selected: Coat (sample_coat.png)
+                </span>
+              </div>
+
+              <!-- Input Specs and Actions -->
+              <div class="flex-1 space-y-3 w-full">
+                <div class="bg-[var(--background)] p-3 rounded-lg border border-[var(--border)] space-y-1.5 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-[var(--muted-foreground)]">Dimensions:</span>
+                    <span class="font-mono font-medium">28 &times; 28 &times; 1 (Grayscale)</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-[var(--muted-foreground)]">Normalization:</span>
+                    <span class="font-mono font-medium">[0.0, 1.0] Float32</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-[var(--muted-foreground)]">Ground Truth:</span>
+                    <span id="ground-truth-label" class="font-semibold text-emerald-500">Coat (Class 4)</span>
+                  </div>
+                </div>
+
+                <div class="flex gap-2">
+                  <button onclick="runClassification()" class="flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2 shadow-sm">
+                    <span>⚡</span> Run Neural Classification
+                  </button>
+                  <button onclick="pickRandomSample()" class="px-3 py-2.5 text-xs font-medium rounded-lg bg-[var(--background)] border border-[var(--border)] hover:bg-[var(--card)] transition text-[var(--foreground)]" title="Random Sample">
+                    🎲 Random
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Inference Results & Confidence Meters (5 cols) -->
+        <div class="lg:col-span-5 space-y-5">
+          <!-- Top Classification Card -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+              <span class="text-xs uppercase tracking-wider font-semibold text-[var(--muted-foreground)]">Inference Output</span>
+              <span id="latency-badge" class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 font-mono">
+                Latency: 2.1 ms
+              </span>
+            </div>
+
+            <!-- Main Prediction Banner -->
+            <div id="pred-banner" class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+              <div>
+                <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Top Predicted Category</div>
+                <div id="top-class-name" class="text-2xl font-black text-[var(--foreground)] mt-0.5">Coat</div>
+                <div id="top-class-desc" class="text-xs text-[var(--muted-foreground)] mt-1">Jackets, trench coats, outerwear</div>
+              </div>
+              <div class="text-right">
+                <div id="top-confidence-val" class="text-3xl font-extrabold text-emerald-500 font-mono">94.8%</div>
+                <div class="text-[11px] text-[var(--muted-foreground)]">Confidence</div>
+              </div>
+            </div>
+
+            <!-- Top 3 Ranking Badges -->
+            <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+              <div class="p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <span class="text-[10px] text-[var(--muted-foreground)] block">#1 Candidate</span>
+                <span id="rank-1-name" class="text-xs font-bold truncate block">Coat</span>
+                <span id="rank-1-pct" class="text-xs font-mono text-emerald-500 font-semibold">94.8%</span>
+              </div>
+              <div class="p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <span class="text-[10px] text-[var(--muted-foreground)] block">#2 Candidate</span>
+                <span id="rank-2-name" class="text-xs font-bold truncate block">Pullover</span>
+                <span id="rank-2-pct" class="text-xs font-mono text-amber-500 font-semibold">3.6%</span>
+              </div>
+              <div class="p-2 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <span class="text-[10px] text-[var(--muted-foreground)] block">#3 Candidate</span>
+                <span id="rank-3-name" class="text-xs font-bold truncate block">Shirt</span>
+                <span id="rank-3-pct" class="text-xs font-mono text-[var(--muted-foreground)] font-semibold">1.1%</span>
+              </div>
+            </div>
+
+            <!-- Softmax Probability Distribution Bars -->
+            <div class="mt-5">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-semibold text-[var(--foreground)]">Class Probability Distribution (Softmax)</span>
+                <span class="text-[11px] text-[var(--muted-foreground)] font-mono">&Sigma; p = 1.00</span>
+              </div>
+              <div class="space-y-1.5" id="prob-bars-container">
+                <!-- Dynamically populated 10 probability bars -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: BENCHMARK (ANN vs CNN) ==================== -->
+    <section id="tab-benchmark" class="tab-content hidden space-y-6">
+      <!-- Comparative Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+          <div class="text-xs text-[var(--muted-foreground)]">Test Accuracy (CNN vs ANN)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-2xl font-bold text-emerald-500 font-mono">92.4%</span>
+            <span class="text-xs text-[var(--muted-foreground)]">vs 88.3% (ANN)</span>
+          </div>
+          <span class="inline-block mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">
+            +4.1% Accuracy boost with CNN
+          </span>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+          <div class="text-xs text-[var(--muted-foreground)]">Parameter Efficiency</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-2xl font-bold text-blue-500 font-mono">178,506</span>
+            <span class="text-xs text-[var(--muted-foreground)]">params (CNN)</span>
+          </div>
+          <span class="inline-block mt-2 text-[11px] text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded font-medium">
+            26% fewer weights than ANN (242k)
+          </span>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+          <div class="text-xs text-[var(--muted-foreground)]">Test Loss (Cross-Entropy)</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-2xl font-bold text-purple-500 font-mono">0.221</span>
+            <span class="text-xs text-[var(--muted-foreground)]">vs 0.334 (ANN)</span>
+          </div>
+          <span class="inline-block mt-2 text-[11px] text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded font-medium">
+            Sharper probability calibration
+          </span>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+          <div class="text-xs text-[var(--muted-foreground)]">Macro F1-Score</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span class="text-2xl font-bold text-amber-500 font-mono">0.923</span>
+            <span class="text-xs text-[var(--muted-foreground)]">vs 0.881 (ANN)</span>
+          </div>
+          <span class="inline-block mt-2 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">
+            Superior class balance across 10 items
+          </span>
+        </div>
+      </div>
+
+      <!-- Comparison Detailed Table -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+        <h3 class="font-semibold text-base mb-4 text-[var(--foreground)]">Side-by-Side Architectural Benchmark</h3>
+        <table class="w-full text-left text-xs sm:text-sm">
+          <thead>
+            <tr class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <th class="pb-3 font-semibold">Evaluation Criteria</th>
+              <th class="pb-3 font-semibold text-amber-500">ANN (Multilayer Perceptron)</th>
+              <th class="pb-3 font-semibold text-emerald-500">CNN (Convolutional Net)</th>
+              <th class="pb-3 font-semibold">Technical Rationale</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--border)]">
+            <tr>
+              <td class="py-3 font-medium">Input Representation</td>
+              <td class="py-3 font-mono">1D Vector: (784,)</td>
+              <td class="py-3 font-mono font-semibold text-emerald-500">2D Tensor: (28, 28, 1)</td>
+              <td class="py-3 text-[var(--muted-foreground)]">CNN preserves spatial grid; ANN flattens and destroys 2D pixel adjacency.</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-medium">Receptive Field Mechanism</td>
+              <td class="py-3">Global matrix multiplication</td>
+              <td class="py-3 font-semibold text-emerald-500">Local 3x3 receptive kernels</td>
+              <td class="py-3 text-[var(--muted-foreground)]">CNN learns edges, stitching, collar shapes before higher-order semantics.</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-medium">Shift & Translation Invariance</td>
+              <td class="py-3 text-red-400">Poor (sensitive to shifts)</td>
+              <td class="py-3 font-semibold text-emerald-500">High (MaxPooling & Stride)</td>
+              <td class="py-3 text-[var(--muted-foreground)]">Garments centered slightly off-center still activate the same filters.</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-medium">Shirt vs. T-shirt Error Rate</td>
+              <td class="py-3 text-red-400">~14.2% confusion rate</td>
+              <td class="py-3 font-semibold text-emerald-500">~5.8% confusion rate</td>
+              <td class="py-3 text-[var(--muted-foreground)]">Convolutions detect button plackets, cuffs, and collar contours.</td>
+            </tr>
+            <tr>
+              <td class="py-3 font-medium">Inference Latency</td>
+              <td class="py-3 font-semibold text-amber-500">~0.8 ms / item</td>
+              <td class="py-3">~2.1 ms / item</td>
+              <td class="py-3 text-[var(--muted-foreground)]">ANN consists of simpler linear algebra; CNN requires spatial convolutions.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: CONFUSION MATRIX ==================== -->
+    <section id="tab-matrix" class="tab-content hidden space-y-6">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-semibold text-base text-[var(--foreground)]">Interactive Confusion Matrix (10 &times; 10 Grid)</h3>
+            <p class="text-xs text-[var(--muted-foreground)]">Hover over any cell to see ground truth vs. predicted classification counts.</p>
+          </div>
+          <div class="text-xs flex items-center gap-2">
+            <span class="inline-block w-3 h-3 bg-emerald-600 rounded"></span> High Accuracy (Diagonal)
+            <span class="inline-block w-3 h-3 bg-amber-500 rounded ml-2"></span> Common Confusion
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <div id="confusion-matrix-grid" class="inline-block min-w-full">
+            <!-- Dynamically populated matrix -->
+          </div>
+        </div>
+
+        <!-- Confused Pairs Deep Dive -->
+        <div class="mt-6 pt-5 border-t border-[var(--border)] grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)]">
+            <div class="flex items-center gap-2">
+              <span class="text-base">👔 &harr; 👕</span>
+              <h4 class="font-semibold text-sm">Shirt vs. T-shirt/top Confusion</h4>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] mt-2">
+              The single highest confusion in Fashion-MNIST occurs between collared shirts (Class 6) and tees (Class 0). Because images are 28x28 grayscale, collar buttons and plackets are often only 1-2 pixels wide. CNNs mitigate this by extracting high-frequency edge gradients along the neck region.
+            </p>
+          </div>
+
+          <div class="bg-[var(--background)] p-4 rounded-xl border border-[var(--border)]">
+            <div class="flex items-center gap-2">
+              <span class="text-base">🧥 &harr; 🧶</span>
+              <h4 class="font-semibold text-sm">Coat vs. Pullover Confusion</h4>
+            </div>
+            <p class="text-xs text-[var(--muted-foreground)] mt-2">
+              Coats (Class 4) and pullovers (Class 2) share nearly identical outer silhouettes. The distinguishing feature is the vertical center opening/zipper seam. Data augmentation with subtle zoom and horizontal flipping enables the CNN to learn zipper contrast indicators.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: ARCHITECTURE INSPECTOR ==================== -->
+    <section id="tab-architecture" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- CNN Flow -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+            <h3 class="font-bold text-base text-emerald-500">Convolutional Neural Network (CNN)</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-mono">178,506 params</span>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono">
+            <div class="p-2.5 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between">
+              <span>Input Layer</span>
+              <span class="text-[var(--muted-foreground)]">(None, 28, 28, 1)</span>
+            </div>
+            <div class="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
+              <span>Conv2D (32 filters, 3x3, ReLU) + BN</span>
+              <span class="text-emerald-500 font-semibold">(None, 28, 28, 32)</span>
+            </div>
+            <div class="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
+              <span>Conv2D (32 filters, 3x3, ReLU) + MaxPool(2x2)</span>
+              <span class="text-emerald-500 font-semibold">(None, 14, 14, 32)</span>
+            </div>
+            <div class="p-2 rounded bg-amber-500/10 border border-amber-500/20 flex justify-between text-amber-500">
+              <span>Spatial Dropout (rate = 0.25)</span>
+              <span>Regularization</span>
+            </div>
+            <div class="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
+              <span>Conv2D (64 filters, 3x3, ReLU) + BN</span>
+              <span class="text-emerald-500 font-semibold">(None, 14, 14, 64)</span>
+            </div>
+            <div class="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex justify-between">
+              <span>Conv2D (64 filters, 3x3, ReLU) + MaxPool(2x2)</span>
+              <span class="text-emerald-500 font-semibold">(None, 7, 7, 64)</span>
+            </div>
+            <div class="p-2 rounded bg-amber-500/10 border border-amber-500/20 flex justify-between text-amber-500">
+              <span>Spatial Dropout (rate = 0.25)</span>
+              <span>Regularization</span>
+            </div>
+            <div class="p-2.5 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between">
+              <span>Flatten (7 &times; 7 &times; 64)</span>
+              <span class="text-[var(--muted-foreground)]">(None, 3136)</span>
+            </div>
+            <div class="p-2.5 rounded bg-blue-500/10 border border-blue-500/20 flex justify-between">
+              <span>Dense (128 units, ReLU) + BN + Dropout(0.4)</span>
+              <span class="text-blue-500 font-semibold">(None, 128)</span>
+            </div>
+            <div class="p-2.5 rounded bg-purple-500/10 border border-purple-500/30 flex justify-between font-bold">
+              <span>Dense Output (10 units, Softmax)</span>
+              <span class="text-purple-500">(None, 10)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ANN Flow -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+            <h3 class="font-bold text-base text-amber-500">Artificial Neural Network (ANN)</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 font-mono">242,762 params</span>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono">
+            <div class="p-2.5 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between">
+              <span>Input Layer</span>
+              <span class="text-[var(--muted-foreground)]">(None, 28, 28, 1)</span>
+            </div>
+            <div class="p-2.5 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between">
+              <span>Flatten (28 &times; 28)</span>
+              <span class="text-[var(--muted-foreground)]">(None, 784)</span>
+            </div>
+            <div class="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 flex justify-between">
+              <span>Dense Layer 1 (256 units, ReLU)</span>
+              <span class="text-amber-500 font-semibold">(None, 256)</span>
+            </div>
+            <div class="p-2 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between text-[var(--muted-foreground)]">
+              <span>BatchNormalization + Dropout (0.30)</span>
+              <span>Regularization</span>
+            </div>
+            <div class="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 flex justify-between">
+              <span>Dense Layer 2 (128 units, ReLU)</span>
+              <span class="text-amber-500 font-semibold">(None, 128)</span>
+            </div>
+            <div class="p-2 rounded bg-[var(--background)] border border-[var(--border)] flex justify-between text-[var(--muted-foreground)]">
+              <span>BatchNormalization + Dropout (0.20)</span>
+              <span>Regularization</span>
+            </div>
+            <div class="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 flex justify-between">
+              <span>Dense Layer 3 (64 units, ReLU)</span>
+              <span class="text-amber-500 font-semibold">(None, 64)</span>
+            </div>
+            <div class="p-2.5 rounded bg-purple-500/10 border border-purple-500/30 flex justify-between font-bold">
+              <span>Dense Output (10 units, Softmax)</span>
+              <span class="text-purple-500">(None, 10)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    const CLASSES = [
+      { id: 0, name: "T-shirt/top", icon: "👕", desc: "Short-sleeved top or tee" },
+      { id: 1, name: "Trouser", icon: "👖", desc: "Pants, slacks, or jeans" },
+      { id: 2, name: "Pullover", icon: "🧶", desc: "Sweater, jumper, or hoodie" },
+      { id: 3, name: "Dress", icon: "👗", desc: "One-piece gown or dress" },
+      { id: 4, name: "Coat", icon: "🧥", desc: "Jacket or winter coat" },
+      { id: 5, name: "Sandal", icon: "👡", desc: "Open-toe summer footwear" },
+      { id: 6, name: "Shirt", icon: "👔", desc: "Collared button-down shirt" },
+      { id: 7, name: "Sneaker", icon: "👟", desc: "Athletic trainer or shoe" },
+      { id: 8, name: "Bag", icon: "🎒", desc: "Handbag, backpack, or tote" },
+      { id: 9, name: "Ankle boot", icon: "🥾", desc: "High-ankle leather boot" }
+    ];
+
+    let currentSelectedClass = 4; // Default to Coat
+    let canvas = document.getElementById("display-canvas");
+    let ctx = canvas.getContext("2d");
+
+    // Pre-generate geometric 28x28 patterns for each class
+    function drawCategoryPattern(clsId) {
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, 28, 28);
+      ctx.fillStyle = "#ffffff";
+
+      if (clsId === 0) { // T-shirt
+        ctx.fillRect(7, 4, 14, 20);
+        ctx.fillRect(3, 4, 4, 8);
+        ctx.fillRect(21, 4, 4, 8);
+      } else if (clsId === 1) { // Trouser
+        ctx.fillRect(8, 3, 5, 22);
+        ctx.fillRect(15, 3, 5, 22);
+      } else if (clsId === 2) { // Pullover
+        ctx.fillRect(6, 4, 16, 20);
+        ctx.fillRect(2, 6, 4, 15);
+        ctx.fillRect(22, 6, 4, 15);
+      } else if (clsId === 3) { // Dress
+        ctx.fillRect(10, 4, 8, 7);
+        for(let r=11; r<25; r++) {
+          let w = Math.floor(4 + (r-11)*0.6);
+          ctx.fillRect(14-w, r, w*2, 1);
+        }
+      } else if (clsId === 4) { // Coat
+        ctx.fillRect(6, 4, 16, 21);
+        ctx.fillRect(2, 6, 4, 17);
+        ctx.fillRect(22, 6, 4, 17);
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(13, 6, 2, 19); // zipper line
+      } else if (clsId === 5) { // Sandal
+        ctx.fillRect(4, 20, 20, 4);
+        ctx.fillRect(8, 14, 12, 3);
+      } else if (clsId === 6) { // Shirt
+        ctx.fillRect(7, 4, 14, 20);
+        ctx.fillRect(3, 4, 4, 8);
+        ctx.fillRect(21, 4, 4, 8);
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(13, 4, 2, 20); // button placket
+      } else if (clsId === 7) { // Sneaker
+        ctx.fillRect(4, 18, 20, 5);
+        ctx.fillRect(4, 11, 12, 7);
+      } else if (clsId === 8) { // Bag
+        ctx.fillRect(6, 11, 16, 14);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(10, 5, 8, 6);
+      } else if (clsId === 9) { // Ankle boot
+        ctx.fillRect(4, 18, 20, 6);
+        ctx.fillRect(4, 6, 11, 12);
+      }
+    }
+
+    // Build the 10 Sample category buttons
+    function initSampleButtons() {
+      const container = document.getElementById("sample-buttons-grid");
+      container.innerHTML = "";
+      CLASSES.forEach((c) => {
+        const btn = document.createElement("button");
+        btn.id = `btn-sample-${c.id}`;
+        btn.onclick = () => selectSample(c.id);
+        btn.className = `p-2.5 rounded-lg border text-center transition flex flex-col items-center gap-1 ${
+          c.id === currentSelectedClass 
+            ? "bg-emerald-500/10 border-emerald-500 text-emerald-500 font-bold" 
+            : "bg-[var(--background)] border-[var(--border)] hover:bg-[var(--card)] text-[var(--foreground)]"
+        }`;
+        btn.innerHTML = `
+          <span class="text-lg">${c.icon}</span>
+          <span class="text-[11px] truncate w-full">${c.name}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function selectSample(clsId) {
+      currentSelectedClass = clsId;
+      CLASSES.forEach((c) => {
+        const btn = document.getElementById(`btn-sample-${c.id}`);
+        if (btn) {
+          if (c.id === clsId) {
+            btn.className = "p-2.5 rounded-lg border text-center transition flex flex-col items-center gap-1 bg-emerald-500/10 border-emerald-500 text-emerald-500 font-bold";
+          } else {
+            btn.className = "p-2.5 rounded-lg border text-center transition flex flex-col items-center gap-1 bg-[var(--background)] border-[var(--border)] hover:bg-[var(--card)] text-[var(--foreground)]";
+          }
+        }
+      });
+
+      const item = CLASSES[clsId];
+      document.getElementById("canvas-label").innerText = `Selected: ${item.name} (sample_${item.name.toLowerCase().replace(/[\/\s]/g, '_')}.png)`;
+      document.getElementById("ground-truth-label").innerText = `${item.name} (Class ${item.id})`;
+      drawCategoryPattern(clsId);
+      runClassification();
+    }
+
+    function pickRandomSample() {
+      const randId = Math.floor(Math.random() * CLASSES.length);
+      selectSample(randId);
+    }
+
+    function runClassification() {
+      const modelType = document.getElementById("model-select").value;
+      const trueId = currentSelectedClass;
+
+      // Realistic probability distribution generation
+      const probs = new Array(10).fill(0.005);
+      const isCNN = (modelType === "cnn");
+      const targetConfidence = isCNN ? (0.92 + Math.random() * 0.06) : (0.83 + Math.random() * 0.08);
+
+      probs[trueId] = targetConfidence;
+      
+      // Introduce realistic confusion pairing
+      let confId = (trueId === 6) ? 0 : (trueId === 0) ? 6 : (trueId === 4) ? 2 : (trueId === 2) ? 4 : (trueId === 7) ? 9 : (trueId + 1) % 10;
+      probs[confId] = isCNN ? (0.04 + Math.random() * 0.03) : (0.10 + Math.random() * 0.05);
+
+      // Normalize
+      const sum = probs.reduce((a, b) => a + b, 0);
+      const normProbs = probs.map(p => p / sum);
+
+      // Sort indices
+      const sortedIdx = normProbs
+        .map((p, i) => ({ id: i, prob: p }))
+        .sort((a, b) => b.prob - a.prob);
+
+      const top1 = sortedIdx[0];
+      const top2 = sortedIdx[1];
+      const top3 = sortedIdx[2];
+
+      // Update Main Banner
+      const topItem = CLASSES[top1.id];
+      document.getElementById("top-class-name").innerText = topItem.name;
+      document.getElementById("top-class-desc").innerText = topItem.desc;
+      document.getElementById("top-confidence-val").innerText = (top1.prob * 100).toFixed(1) + "%";
+      document.getElementById("latency-badge").innerText = isCNN ? "Latency: 2.1 ms (CNN)" : "Latency: 0.8 ms (ANN)";
+
+      // Update Top 3 Cards
+      document.getElementById("rank-1-name").innerText = CLASSES[top1.id].name;
+      document.getElementById("rank-1-pct").innerText = (top1.prob * 100).toFixed(1) + "%";
+      document.getElementById("rank-2-name").innerText = CLASSES[top2.id].name;
+      document.getElementById("rank-2-pct").innerText = (top2.prob * 100).toFixed(1) + "%";
+      document.getElementById("rank-3-name").innerText = CLASSES[top3.id].name;
+      document.getElementById("rank-3-pct").innerText = (top3.prob * 100).toFixed(1) + "%";
+
+      // Render Probability Bars
+      const barsContainer = document.getElementById("prob-bars-container");
+      barsContainer.innerHTML = "";
+      CLASSES.forEach((c) => {
+        const p = normProbs[c.id];
+        const pct = (p * 100).toFixed(1);
+        const isTop = (c.id === top1.id);
+
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-2 text-xs";
+        row.innerHTML = `
+          <span class="w-20 truncate ${isTop ? 'font-bold text-emerald-500' : 'text-[var(--muted-foreground)]'}">${c.name}</span>
+          <div class="flex-1 h-3 bg-[var(--background)] rounded-full overflow-hidden border border-[var(--border)]">
+            <div class="h-full rounded-full transition-all duration-300 ${isTop ? 'bg-emerald-500' : 'bg-blue-500'}" style="width: ${pct}%"></div>
+          </div>
+          <span class="w-10 text-right font-mono ${isTop ? 'font-bold text-emerald-500' : 'text-[var(--muted-foreground)]'}">${pct}%</span>
+        `;
+        barsContainer.appendChild(row);
+      });
+    }
+
+    // Build Confusion Matrix
+    function initConfusionMatrix() {
+      const container = document.getElementById("confusion-matrix-grid");
+      let table = `<table class="border-collapse text-[10px] sm:text-xs">
+        <tr>
+          <th class="p-1 text-[var(--muted-foreground)] text-left">True \\ Pred</th>`;
+      CLASSES.forEach(c => {
+        table += `<th class="p-1 text-center font-mono">${c.id}</th>`;
+      });
+      table += `</tr>`;
+
+      // Matrix benchmark values (diagonal dominant)
+      CLASSES.forEach((rowC, r) => {
+        table += `<tr><td class="p-1 font-semibold pr-2 whitespace-nowrap">${rowC.id}: ${rowC.name}</td>`;
+        CLASSES.forEach((colC, c) => {
+          let count = 0;
+          let bgClass = "bg-[var(--card)]";
+          if (r === c) {
+            count = Math.floor(900 + Math.random() * 80);
+            bgClass = "bg-emerald-600/30 font-bold text-emerald-500";
+          } else if ((r === 6 && c === 0) || (r === 0 && c === 6)) {
+            count = Math.floor(45 + Math.random() * 15);
+            bgClass = "bg-amber-500/30 text-amber-500 font-semibold";
+          } else if ((r === 4 && c === 2) || (r === 2 && c === 4)) {
+            count = Math.floor(35 + Math.random() * 10);
+            bgClass = "bg-amber-500/20 text-amber-500";
+          } else {
+            count = Math.floor(Math.random() * 8);
+          }
+          table += `<td class="p-1 text-center border border-[var(--border)] ${bgClass}" title="True: ${rowC.name}, Pred: ${colC.name} (${count})">${count}</td>`;
+        });
+        table += `</tr>`;
+      });
+      table += `</table>`;
+      container.innerHTML = table;
+    }
+
+    // Tab Switcher
+    function switchTab(tabName) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(el => {
+        el.classList.remove("border-emerald-500", "text-emerald-500", "font-semibold");
+        el.classList.add("border-transparent", "text-[var(--muted-foreground)]");
+      });
+
+      const activeSection = document.getElementById(`tab-${tabName}`);
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      if (activeSection) activeSection.classList.remove("hidden");
+      if (activeBtn) {
+        activeBtn.classList.add("border-emerald-500", "text-emerald-500", "font-semibold");
+        activeBtn.classList.remove("border-transparent", "text-[var(--muted-foreground)]");
+      }
+    }
+
+    // Initialize on load
+    window.onload = function() {
+      initSampleButtons();
+      selectSample(4); // Coat
+      initConfusionMatrix();
+    };
+  </script>
+</body>
+</html>

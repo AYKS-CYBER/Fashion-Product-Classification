@@ -1,0 +1,48 @@
+{
+    "project_name": "Fashion Product Classification using CNN",
+    "dataset": "Fashion-MNIST",
+    "input_shape": [
+        28,
+        28,
+        1
+    ],
+    "num_classes": 10,
+    "class_names": [
+        "T-shirt/top",
+        "Trouser",
+        "Pullover",
+        "Dress",
+        "Coat",
+        "Sandal",
+        "Shirt",
+        "Sneaker",
+        "Bag",
+        "Ankle boot"
+    ],
+    "class_descriptions": {
+        "T-shirt/top": "Casual everyday tops, t-shirts, and short-sleeved crewneck/v-neck shirts.",
+        "Trouser": "Pants, trousers, jeans, and formal slacks.",
+        "Pullover": "Sweaters, pullovers, long-sleeve knitwear, and sweatshirts.",
+        "Dress": "Full-body dresses, party dresses, and sundresses.",
+        "Coat": "Long jackets, trench coats, winter coats, and outerwear.",
+        "Sandal": "Open-toe casual summer sandals and flat slip-ons.",
+        "Shirt": "Button-down collared dress shirts with front buttons and collars.",
+        "Sneaker": "Athletic footwear, running sneakers, and sports shoes.",
+        "Bag": "Handbags, backpacks, tote bags, and luggage accessories.",
+        "Ankle boot": "High-top ankle boots, leather boots, and winter footwear."
+    },
+    "test_accuracy": 0.9273999929428101,
+    "test_loss": 0.1968589574098587,
+    "total_parameters": 619114,
+    "model_file": "fashion_cnn_model.keras",
+    "model_type": "Enhanced VGG-style CNN with Data Augmentation",
+    "preprocessing": {
+        "grayscale": true,
+        "target_size": [
+            28,
+            28
+        ],
+        "normalization": "x / 255.0",
+        "background": "dark (white object on dark background)"
+    }
+}

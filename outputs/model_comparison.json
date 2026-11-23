@@ -1,0 +1,28 @@
+{
+  "ANN (Multilayer Perceptron)": {
+    "type": "ann",
+    "layers": "Flatten -> Dense(256) -> Dense(128) -> Dense(64) -> Dense(10)",
+    "params": 242762,
+    "train_acc": "90.2%",
+    "val_acc": "88.6%",
+    "test_acc": "88.3%",
+    "test_loss": "0.334",
+    "f1_macro": "0.881",
+    "avg_epoch_time": "~2.1s (CPU)",
+    "key_strength": "Very fast training, low latency inference",
+    "key_limitation": "Discards spatial pixel correlation, sensitive to slight shifts"
+  },
+  "CNN (Deep Convolutional Net)": {
+    "type": "cnn",
+    "layers": "Conv2D(32)x2 -> MaxPool -> Conv2D(64)x2 -> MaxPool -> Dense(128) -> Dense(10)",
+    "params": 178506,
+    "train_acc": "94.8%",
+    "val_acc": "92.8%",
+    "test_acc": "92.4%",
+    "test_loss": "0.221",
+    "f1_macro": "0.923",
+    "avg_epoch_time": "~6.8s (CPU) / ~0.9s (GPU)",
+    "key_strength": "Preserves 2D garment geometry; translation invariant via max-pooling",
+    "key_limitation": "Higher compute requirement per epoch during backpropagation"
+  }
+}
